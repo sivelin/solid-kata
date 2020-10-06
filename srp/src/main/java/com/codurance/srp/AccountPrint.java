@@ -12,34 +12,40 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.stream.Collectors.toCollection;
 
-public class AccountService {
+public class AccountPrint {
+
 
     private static final String STATEMENT_HEADER = "DATE | AMOUNT | BALANCE";
     private static final String DATE_FORMAT = "dd/MM/yyyy";
     private static final String AMOUNT_FORMAT = "#.00";
 
-    private final TransactionRepository transactionRepository;
-    private final Clock clock;
-    private final Console console;
+    private Console console;
+    private TransactionRepository transactionRepository;
 
-    public AccountService(TransactionRepository transactionRepository, Clock clock, Console console) {
-        this.transactionRepository = transactionRepository;
-        this.clock = clock;
+    public AccountPrint(TransactionRepository transactionRepository, Console console) {
+        this.transactionRepository = transactionRepository; // TODO im prinStatement
         this.console = console;
     }
 
-    public void deposit(int amount) {
-        transactionRepository.add(transactionWith(amount));
+    public void printStatement() {
+        printHeader();
+        printTransactions();
     }
 
 
-    public void withdraw(int amount) {
-        transactionRepository.add(transactionWith(-amount));
+    private void printHeader() {
+        printLine(STATEMENT_HEADER);
     }
 
 
-    private Transaction transactionWith(int amount) {
-        return new Transaction(clock.today(), amount);
+    private void printTransactions() {
+        List<Transaction> transactions = transactionRepository.all();
+        final AtomicInteger balance = new AtomicInteger(0);
+        transactions.stream()
+                .map(transaction -> statementLine(transaction, balance.addAndGet(transaction.amount())))
+                .collect(toCollection(LinkedList::new))
+                .descendingIterator()
+                .forEachRemaining(this::printLine);
     }
 
     private String statementLine(Transaction transaction, int balance) {
@@ -54,5 +60,10 @@ public class AccountService {
     private String formatNumber(int amount) {
         DecimalFormat decimalFormat = new DecimalFormat(AMOUNT_FORMAT, DecimalFormatSymbols.getInstance(Locale.UK));
         return decimalFormat.format(amount);
+    }
+
+
+    private void printLine(String line) {
+        console.printLine(line);
     }
 }
